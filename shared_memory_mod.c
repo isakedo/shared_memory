@@ -18,9 +18,18 @@ MODULE_AUTHOR("Isak Edo Vivancos - 682405, Dariel Figueredo Piñero - 568659");
 MODULE_DESCRIPTION("Gestión memoria compartida para los cores lx y baremetal");
 MODULE_VERSION("0.0.06"); 
 
-#define MEM_SIZE sizeof(u32)*1024
+//=====================================
+// constantes
+#define MEM_SIZE (sizeof(u32)*1024)
 
+//=====================================
+// variables globales
+static int iterador = 0;//iterador para lecturas a trozos
 static void * init_addr;
+
+
+//=====================================
+// funciones
 
 int init_module(void)
 {	
@@ -38,7 +47,10 @@ int init_module(void)
 	printk(KERN_INFO "La direccion de inicio es: 0x%x\n",(u32)init_addr);		
 	return 0;	
 }
-
+void * shared_address(void) 
+{
+	return init_addr;
+}
 
 
 /*
@@ -47,8 +59,9 @@ int init_module(void)
 * out_buffer: buffer de salida para el contenido copiado
 * content_size: cantidad de contenido a copiar < 4MB
 * option: seleccionar una opción de lectura(0 ,1)
-*		0 lectura secuencial
-* 	
+*		0 lectura secuencial, lee desde inicio hasta inicio+content_size
+* 	1	lectura por trozos, lee desde inicio+iterador hasta inicio+iterador+content_size
+				el iterador avanza de 4 en 4
 * return (0,-1):
 *		0 ok
 *		-1 error
@@ -60,14 +73,29 @@ int read(char* out_buffer, size_t content_size, int option)
 	{
 		if(content_size <= MEM_SIZE)
 		{
-			for(int i = 0; i < content_size; i+4)
-				out_buffer = init_addr + i;	
+			int i = 0;
+			while(i < content_size)
+			{
+				out_buffer = init_addr + i;
+				i+=4;
+			}
 			return 0;
 		}
 		return -1;
 	}
 	else if(option == 1)
 	{
+		if((iterador + content_size) <= MEM_SIZE)
+		{
+			int i = iterador;
+			while(i<iterador+content_size)
+			{
+				out_buffer = int_addr + i;
+				i+=4;
+			}
+			iterador = i;
+			return 0;
+		}
 		return -1;
 	}
 	else
@@ -76,12 +104,27 @@ int read(char* out_buffer, size_t content_size, int option)
 	}
 }
 
+/*
+* pone a 0 el iterador de lectura
+*/
+void reset_iterator(void)
+{
+	iterador = 0;
+}
+
+/*
+* devuelve la diferencia entre final-iterador, es decir el espacio que queda por leer
+*/
+int size_iterator_end(void)
+{
+	return (int)MEM_SIZE - iterador;
+}
+
+
+
 void cleanup_module(void)
 {
 	kfree(init_addr);
 }	
 
-void * shared_address(void) 
-{
-	return init_addr;
-}
+
