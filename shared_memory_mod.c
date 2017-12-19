@@ -1,4 +1,13 @@
-
+/*
+* ================================================================================
+*
+*shared_memory.c
+*		Establece un área de memoria, reservada por dma, compartida entre los nucleos
+*		para cumplir la función de canal de comunicaciones. 
+*
+*
+* ================================================================================
+*/
 #include <linux/module.h> // Needed by all modules
 #include <linux/kernel.h> // Needed for KERN_INFO
 #include <linux/init.h>
@@ -7,7 +16,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Isak Edo Vivancos - 682405, Dariel Figueredo Piñero - 568659");
 MODULE_DESCRIPTION("Gestión memoria compartida para los cores lx y baremetal");
-MODULE_VERSION("0.0.05"); 
+MODULE_VERSION("0.0.06"); 
 
 #define MEM_SIZE sizeof(u32)*1024
 
@@ -30,9 +39,24 @@ int init_module(void)
 	return 0;	
 }
 
+
+
+/*
+*	int read(char* out_buffer, size_t content_size, int option)
+*
+* out_buffer: buffer de salida para el contenido copiado
+* content_size: cantidad de contenido a copiar < 4MB
+* option: seleccionar una opción de lectura(0 ,1)
+*		0 lectura secuencial
+* 	
+* return (0,-1):
+*		0 ok
+*		-1 error
+*/
 int read(char* out_buffer, size_t content_size, int option)
 {
 	if(option == 0)
+	//lee hasta content_size datos de memoria y los copia al buffer 
 	{
 		if(content_size <= MEM_SIZE)
 		{
