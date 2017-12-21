@@ -51,6 +51,12 @@ static struct file_operations shared_memory_smops=
 
 //================================
 //funciones driver
+/*
+* dev_open
+*
+* Se encarga de reservar la memoria compartida. Es importante
+* llamar a close(dev_release) para liberar dicha memoria.
+*/
 static int dev_open(struct inode *inodep, struct file *filep)
 {
 	printk(KERN_INFO "Reservando espacio compartido..\n");
@@ -67,6 +73,13 @@ static int dev_open(struct inode *inodep, struct file *filep)
 	printk(KERN_INFO "La direccion de inicio es: 0x%x\n",(u32)init_addr);
 	return 0;
 }
+
+/*
+* dev_release
+*
+* Se encarga de liberar la memoria reservada durante el open.
+*
+*/
 static int dev_release(struct inode *inodep, struct file *filep)
 {
 		kfree(init_addr);
