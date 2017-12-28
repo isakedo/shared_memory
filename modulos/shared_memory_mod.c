@@ -16,13 +16,13 @@
 #include <linux/fs.h>//file system support
 #include <linux/device.h>//kernel driver model
 
-#define DEVICE_NAME "shm"
-#define CLASS_NAME "sh"
+#define DEVICE_NAME "sharedmemory"
+#define CLASS_NAME "shmem"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Isak Edo Vivancos - 682405, Dariel Figueredo Piñero - 568659");
 MODULE_DESCRIPTION("Gestión memoria compartida para los cores lx y baremetal");
-MODULE_VERSION("0.1.01");
+MODULE_VERSION("0.2.01");
 
 //=====================================
 // constantes
@@ -39,7 +39,11 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 static ssize_t dev_write(struct file *filep, char *buffer, size_t len, loff_t *offset);
 static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 
+static int    majorNumber;                 
 static struct cdev cdev;
+static struct class*  shmemClass  = NULL;
+static struct device* shmemDevice = NULL;
+
 static struct file_operations shared_memory_smops=
 {
 	.read = dev_read,
@@ -103,11 +107,41 @@ static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 int init_module(void)
 {
-	printk(KERN_INFO "Successfully installed \n");
+	// Try to dynamically allocate a major number for the device -- more difficult but worth it
+	majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
+	if (majorNumber<0){
+		printk(KERN_ALERT "Shared memory failed to register a major number\n");
+		return majorNumber;
+	}
+	printk(KERN_INFO "Shared memory: registered correctly with major number %d\n", majorNumber);
+
+	// Register the device class
+	shmemClass = class_create(THIS_MODULE, CLASS_NAME);
+	if (IS_ERR(shmemClass)){              
+		unregister_chrdev(majorNumber, DEVICE_NAME);
+		printk(KERN_ALERT "Failed to register device class\n");
+		return PTR_ERR(shmemClass);        
+	}
+	printk(KERN_INFO "Shared memory: device class registered correctly\n");
+
+   	// Register the device driver
+	shmemDevice = device_create(shmemClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
+	if (IS_ERR(shmemDevice)){               
+    	class_destroy(shmemClass);           
+    	unregister_chrdev(majorNumber, DEVICE_NAME);
+    	printk(KERN_ALERT "Failed to create the device\n");
+    	return PTR_ERR(shmemDevice);
+	}
+
+	printk(KERN_INFO "Shared memory successfully installed!! \n");
 	return 0;
 }
 
 void cleanup_module(void)
 {
-	printk(KERN_INFO "Successfully uninstalled \n");
+	device_destroy(shmemClass, MKDEV(majorNumber, 0));     
+	class_unregister(shmemClass);                         
+	class_destroy(shmemClass);                             
+	unregister_chrdev(majorNumber, DEVICE_NAME);             
+	printk(KERN_INFO "Shared memory successfully uninstalled :(\n");
 }
