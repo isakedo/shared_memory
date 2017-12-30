@@ -49,7 +49,7 @@ static struct file_operations shared_memory_smops=
 	.read = dev_read,
 	.write = dev_write,
 	.open = dev_open,
-	.release = dev_relaese,
+	.release = dev_release,
 	.unlocked_ioctl = dev_ioctl,
 };
 

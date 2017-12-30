@@ -1,22 +1,8 @@
-/*
- * temp.c
- *
- *  Created on: Oct 4, 2014
- *      Author: etsam
- */
-
-/*
- * Test application that data integraty of inter processor
- * communication from linux userspace to a remote software
- * context. The application sends chunks of data to the
- * remote processor. The remote side echoes the data back
- * to application which then validates the data returned.
- */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
+#include <linux/ioctl.h>
 #include <time.h>
 #include <fcntl.h>
 #include <string.h>
@@ -29,12 +15,12 @@
 #define STOP_WRITE	0xEF56A556
 
 struct _payload {
-		unsigned int message;
+	unsigned int message;
         unsigned long size;
         char *data;
 };
 
-static int fd;
+static int fd, fdsm;
 
 struct _payload *i_payload;
 struct _payload *r_payload;
@@ -64,7 +50,7 @@ int main(int argc, char *argv[])
 	int size, bytes_rcvd, bytes_sent;
 	int opt;
 	char *rpmsg_dev="/dev/rpmsg0";
-	//char *shared_mem="/sys/module/shared_memory_mod";
+	char *shared_mem="/dev/sharedmemory";
 	while ((opt = getopt(argc, argv, "d:")) != -1) {
 		switch (opt) {
 		case 'd':
@@ -80,12 +66,22 @@ int main(int argc, char *argv[])
 	printf("\r\n Open rpmsg dev! \r\n");
 
 	fd = open(rpmsg_dev, O_RDWR | O_NONBLOCK);
-	//fdsm = open(shared_mem, O_RDWR | O_NONBLOCK);
 
 	if (fd < 0) {
 		perror("Failed to open rpmsg file /dev/rpmsg0.");
 		return -1;
 	}
+
+
+	fdsm = open(shared_mem, O_RDWR);//prueba abrir el módulo
+
+	if (fdsm < 0) {
+		perror("Failed to open /dev/sahredmemory.");
+		return -1;
+	}
+
+	long address = ioctl(fdsm,0,0);
+	printf("\r\n DIR: %ld \r\n",address);
 
 	printf("\r\n Query internal info .. \r\n");
 
@@ -190,5 +186,7 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+
 
 
