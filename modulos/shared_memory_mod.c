@@ -39,7 +39,7 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 static ssize_t dev_write(struct file *filep, char *buffer, size_t len, loff_t *offset);
 static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 
-static int    majorNumber;                 
+static int    majorNumber;
 static struct cdev cdev;
 static struct class*  shmemClass  = NULL;
 static struct device* shmemDevice = NULL;
@@ -89,12 +89,50 @@ static int dev_release(struct inode *inodep, struct file *filep)
 		kfree(init_addr);
 		return 0;
 }
+
+/* dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset)
+*
+*	buffer: buffer de salida para el contenido copiado
+* len: cantidad de contenido a copiar < 4MB
+*
+*/
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset)
 {
+
+	if(len <= MEM_SIZE)
+	{
+			int i = 0;
+			while(i < len)
+			{
+				buffer = init_addr[i];
+				printk(KERN_INFO "read buffer %x\n", buffer[i]);
+				printk(KERN_INFO "read init_addr %x\n", init_addr[i]);
+				i++;
+			}
+			return i*4;//número de bytes leidos
+	}
 	return -1;
 }
+
+
 static ssize_t dev_write(struct file *filep, char *buffer, size_t len, loff_t *offset)
 {
+	if(len <= MEM_SIZE)
+	{
+		//void j* = init_addr;
+		int i = 0;
+		while(i < len)
+		{
+			init_addr[i] = buffer[i];
+			printk(KERN_INFO "write buffer %x\n", buffer[i]);
+			printk(KERN_INFO "write init_addr %x\n", init_addr[i]);
+			i++;
+
+
+		}
+		return i*4;
+	}
+
 	return -1;
 }
 static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
@@ -117,17 +155,17 @@ int init_module(void)
 
 	// Register the device class
 	shmemClass = class_create(THIS_MODULE, CLASS_NAME);
-	if (IS_ERR(shmemClass)){              
+	if (IS_ERR(shmemClass)){
 		unregister_chrdev(majorNumber, DEVICE_NAME);
 		printk(KERN_ALERT "Failed to register device class\n");
-		return PTR_ERR(shmemClass);        
+		return PTR_ERR(shmemClass);
 	}
 	printk(KERN_INFO "Shared memory: device class registered correctly\n");
 
    	// Register the device driver
 	shmemDevice = device_create(shmemClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
-	if (IS_ERR(shmemDevice)){               
-    	class_destroy(shmemClass);           
+	if (IS_ERR(shmemDevice)){
+    	class_destroy(shmemClass);
     	unregister_chrdev(majorNumber, DEVICE_NAME);
     	printk(KERN_ALERT "Failed to create the device\n");
     	return PTR_ERR(shmemDevice);
@@ -139,9 +177,9 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	device_destroy(shmemClass, MKDEV(majorNumber, 0));     
-	class_unregister(shmemClass);                         
-	class_destroy(shmemClass);                             
-	unregister_chrdev(majorNumber, DEVICE_NAME);             
+	device_destroy(shmemClass, MKDEV(majorNumber, 0));
+	class_unregister(shmemClass);
+	class_destroy(shmemClass);
+	unregister_chrdev(majorNumber, DEVICE_NAME);
 	printk(KERN_INFO "Shared memory successfully uninstalled :(\n");
 }
