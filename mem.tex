@@ -1,0 +1,70 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{cite} 
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{lstlinebgrd}
+\usepackage{listings}
+\usepackage{color}
+\lstloadlanguages{Ruby}
+\lstset{%
+basicstyle=\ttfamily\color{black},
+commentstyle = \ttfamily\color{red},
+keywordstyle=\ttfamily\color{blue},
+stringstyle=\color{orange}}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+
+\vspace*{0.15in}
+\vspace*{0.6in}
+\vspace*{0.2in}
+\begin{Large}
+\textbf{SISTEMAS EMPOTRADOS II} \\
+\end{Large}
+\vspace*{0.3in}
+\begin{large}
+\textbf{Trabajo} \\
+\end{large}
+\vspace*{0.3in}
+\rule{80mm}{0.1mm}\\
+\vspace*{0.1in}
+\begin{large}
+Isak Edo Vivancos - 682405\\
+Dariel Figueredo Piñero - 568659\\
+\end{large}
+
+\end{center}
+\end{titlepage}
+
+\section{Introducción}
+En una placa Zedboard de Xilinx se esta utilizando el módulo \textbf{openAMP} para que uno de los cores del SoC ejecute una aplicación bare metal. Este módulo crea un canal de comunicación con el objetivo de transmitir datos desde el core en bare metal hasta el core ejecutando un linux. Sin embargo, aparecían anomalías en la transmisión.\\
+
+\noindent Como solución se propone el uso de un driver para el core linux que realice una reserva de memoria compartida para ambos core en la SRAM compartida y provea de una interfaz para su uso. Este driver permite que las comunicaciones entre los cores sean asíncronas. \\
+
+\noindent Mediante este driver el linux puede leer de la memoria compartida según vaya escribiendo la aplicación en bare metal. Además, puede leer la dirección donde empieza el espacio reservado para así poder enviársela al core en bare metal y que este pueda escribir.   
+
+\section{Entorno Xilinx}
+
+La placa sobre la que se va a programar dicho driver es una Zedboard de Xilinx con Zynq®-7000 SoC programable, el cual incluye Dual ARM® Cortex™-A9 MPCore. Estos cores comparten una memoria DDR3 de 512MB fuera del SoC, esta es la que se va a utilizar para su comunicación.\\
+
+\noindent Para poder hacer que un core ejecute una aplicación en bare metal mientras que el otro core esta en linux es necesario utilizar el módulo de Xilinx \textbf{openAMP} en fase beta. Mediante este módulo se desvincula uno de los cores del linux y se ejecuta la aplicación en bare metal como esclavo del core linux que hace las veces de master.\\
+
+\noindent Para poder comunicar ambos cores se utiliza el módulo \textbf{rpmsg\_user\_dev \_driver}, el cual es un driver para un canal de comunicación entre los dos cores. De este modo el maestro en linux puede enviar mensajes al core en bare metal. Este core captura el mensaje como un evento y mediante una función se puede ejecutar código como respuesta. 
+
+\clearpage 
+
+\noindent Este canal a su vez utiliza un buffer reservado como memoria compartida para realizar la transmisión de los datos de un lado a otro. Tiene un límite de 512B bytes reservados, desglosándose en 16B de cabecera y 496 bytes de payload. En la información del módulo se aconseja no cambiar el tamaño del mensaje porque puede dejar de funcionar.
+
+\section{Driver}
+
+\section{Pruebas}
+Para poder comprobar el correcto funcionamiento del driver se han programado como test una aplicación para linux y una aplicación para el bare metal. La aplicación bare metal puede recibir tres tipos de mensajes distintos, WRITE indicando que escriba en la memoria compartida, ECHO para comprobar que funciona correctamente el canal devuelve el mensaje recibido al core linux, y finalmente SHUTDOWN para apagar el core.\\
+
+\noindent Por otro lado la aplicación en linux provee una interfaz de texto sencilla con la siguientes opciones: enviar un mensaje al bare metal para que escriba en la memoria compartida, escribir el propio linux a través del driver en la memoria compartida, leer la memoria compartida, realizar un ping al bare metal y apagar el core remoto.\\
+
+\end{document}
+
