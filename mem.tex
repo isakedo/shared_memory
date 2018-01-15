@@ -47,15 +47,19 @@ En una placa Zedboard de Xilinx se esta utilizando el módulo \textbf{openAMP} p
 
 \noindent Mediante este driver el linux puede leer de la memoria compartida según vaya escribiendo la aplicación en bare metal. Además, puede leer la dirección donde empieza el espacio reservado para así poder enviársela al core en bare metal y que este pueda escribir.   
 
-\section{Entorno Xilinx}
+\section{Entorno de trabajo}
 
-La placa sobre la que se va a programar dicho driver es una Zedboard de Xilinx con Zynq®-7000 SoC programable, el cual incluye Dual ARM® Cortex™-A9 MPCore. Estos cores comparten una memoria DDR3 de 512MB fuera del SoC, esta es la que se va a utilizar para su comunicación.\\
+La placa sobre la que se va a programar dicho driver es una \textbf{Zedboard} de Xilinx con Zynq®-7000 SoC programable, el cual incluye Dual ARM® Cortex™-A9 MPCore. Estos cores comparten una memoria DDR3 de 512MB fuera del SoC, esta es la que se va a utilizar para su comunicación.\\
 
-\noindent Para poder hacer que un core ejecute una aplicación en bare metal mientras que el otro core esta en linux es necesario utilizar el módulo de Xilinx \textbf{openAMP} en fase beta. Mediante este módulo se desvincula uno de los cores del linux y se ejecuta la aplicación en bare metal como esclavo del core linux que hace las veces de master.\\
+\noindent El va a utilizar el sistema operativo para empotrados \textbf{Petalinux}, el cual se compilará e instalará el boot y sistema de ficheros en un tarjeta SD. Para ello se utilizan las \textbf{Petalinux Tools} proporcionadas por Xilinx, así como el \textbf{Board Support Package} propio de la Zedboard para no tener que definir el hardware de la FPGA. \\
 
-\noindent Para poder comunicar ambos cores se utiliza el módulo \textbf{rpmsg\_user\_dev \_driver}, el cual es un driver para un canal de comunicación entre los dos cores. De este modo el maestro en linux puede enviar mensajes al core en bare metal. Este core captura el mensaje como un evento y mediante una función se puede ejecutar código como respuesta. 
+Además, para el desarrollo de la aplicación de bare metal se utiliza el IDE de programación XSDK basado en eclipse, el cual permite generar el fichero .elf. Tanto la aplicación en linux como el módulo se programan en un editor de texto, mientras que para el módulo se realiza cross compiling con el compilador \textbf{arm-xilinx-linux-gnueabu-gcc}.\\
 
-\clearpage 
+\clearpage
+
+\noindent Para poder hacer que un core ejecute una aplicación en bare metal mientras que el otro core esta en linux es necesario utilizar el módulo de Xilinx \textbf{openAMP}. Mediante este módulo se desvincula uno de los cores del linux y se ejecuta la aplicación en bare metal como esclavo del core linux que hace las veces de master.\\
+
+\noindent Para poder comunicar ambos cores se utiliza el módulo \textbf{rpmsg\_user\_dev \_driver}, el cual es un driver para un canal de comunicación entre los dos cores. De este modo el maestro en linux puede enviar mensajes al core en bare metal. Este core captura el mensaje como un evento y mediante una función se puede ejecutar código como respuesta. \\
 
 \noindent Este canal a su vez utiliza un buffer reservado como memoria compartida para realizar la transmisión de los datos de un lado a otro. Tiene un límite de 512B bytes reservados, desglosándose en 16B de cabecera y 496 bytes de payload. En la información del módulo se aconseja no cambiar el tamaño del mensaje porque puede dejar de funcionar.
 

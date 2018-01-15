@@ -15,6 +15,8 @@
 #include <linux/cdev.h> //cdev struct
 #include <linux/fs.h>//file system support
 #include <linux/device.h>//kernel driver model
+#include <linux/uaccess.h> //copy_from/to_user
+#include <asm/page.h>
 
 #define DEVICE_NAME "sharedmemory"
 #define CLASS_NAME "shmem"
@@ -22,7 +24,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Isak Edo Vivancos - 682405, Dariel Figueredo Piñero - 568659");
 MODULE_DESCRIPTION("Gestión memoria compartida para los cores lx y baremetal");
-MODULE_VERSION("0.2.01");
+MODULE_VERSION("0.5.0");
 
 //=====================================
 // constantes
@@ -31,13 +33,14 @@ MODULE_VERSION("0.2.01");
 //=====================================
 // variables globales
 //static int iterador = 0;//iterador para lecturas a trozos
-static void * init_addr;
+static char * init_addr_va;
+static off_t init_addr_pa;
 
 static int dev_open(struct inode *inodep, struct file *filep);
-static int dev_relaese(struct inode *inodep, struct file *filep);
+static int dev_release(struct inode *inodep, struct file *filep);
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset);
 static ssize_t dev_write(struct file *filep, char *buffer, size_t len, loff_t *offset);
-static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+static off_t dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 
 static int    majorNumber;
 static struct cdev cdev;
@@ -64,17 +67,19 @@ static struct file_operations shared_memory_smops=
 static int dev_open(struct inode *inodep, struct file *filep)
 {
 	printk(KERN_INFO "Reservando espacio compartido..\n");
-	//Reserva 4MB, maximo 16MB
-	init_addr = kmalloc(MEM_SIZE,__GFP_DMA);
+	//Reserva 4KB, maximo 16MB
+	init_addr_va = kmalloc(MEM_SIZE,__GFP_DMA);
 
-	if(!init_addr)
+	if(!init_addr_va)
 	{
 		printk(KERN_INFO "Error, no se ha podido reservar\n");
 		return -1;
 	}
+	init_addr_pa = (off_t)__pa(init_addr_va);
 
-	printk(KERN_INFO "Se ha reservado: %zu bytes\n",ksize(init_addr));
-	printk(KERN_INFO "La direccion de inicio es: 0x%x\n",(u32)init_addr);
+	printk(KERN_INFO "Se ha reservado: %zu bytes\n",ksize(init_addr_va));
+	printk(KERN_INFO "La direccion de inicio virtual es: 0x%x\n",(u32)init_addr_va);
+	printk(KERN_INFO "La direccion de inicio fisica es: 0x%x\n",(u32)init_addr_pa);
 	return 0;
 }
 
@@ -86,7 +91,7 @@ static int dev_open(struct inode *inodep, struct file *filep)
 */
 static int dev_release(struct inode *inodep, struct file *filep)
 {
-		kfree(init_addr);
+		kfree(init_addr_va);
 		return 0;
 }
 
@@ -101,15 +106,8 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 
 	if(len <= MEM_SIZE)
 	{
-			int i = 0;
-			while(i < len)
-			{
-				buffer = init_addr[i];
-				printk(KERN_INFO "read buffer %x\n", buffer[i]);
-				printk(KERN_INFO "read init_addr %x\n", init_addr[i]);
-				i++;
-			}
-			return i*4;//número de bytes leidos
+		copy_to_user(buffer,init_addr_va,len);
+		return len;//número de bytes leidos
 	}
 	return -1;
 }
@@ -119,25 +117,16 @@ static ssize_t dev_write(struct file *filep, char *buffer, size_t len, loff_t *o
 {
 	if(len <= MEM_SIZE)
 	{
-		//void j* = init_addr;
-		int i = 0;
-		while(i < len)
-		{
-			init_addr[i] = buffer[i];
-			printk(KERN_INFO "write buffer %x\n", buffer[i]);
-			printk(KERN_INFO "write init_addr %x\n", init_addr[i]);
-			i++;
 
-
-		}
-		return i*4;
+		copy_from_user(init_addr_va,buffer,len);
+		return len;
 	}
 
 	return -1;
 }
-static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+static off_t dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
-	return (long)init_addr;
+	return init_addr_pa;
 }
 
 //================================
@@ -146,7 +135,7 @@ static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 int init_module(void)
 {
 	// Try to dynamically allocate a major number for the device -- more difficult but worth it
-	majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
+	majorNumber = register_chrdev(0, DEVICE_NAME, &shared_memory_smops);
 	if (majorNumber<0){
 		printk(KERN_ALERT "Shared memory failed to register a major number\n");
 		return majorNumber;

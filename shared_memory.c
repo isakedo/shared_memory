@@ -11,13 +11,13 @@
 #define SHUTDOWN_MSG	0xEF56A55A
 #define PING		0xEF56A559
 #define WRITE_NOW	0xEF56A558
-#define START_WRITE	0xEF56A557
-#define STOP_WRITE	0xEF56A556
+
+#define MEM_SIZE (sizeof(unsigned long)*1024)
 
 struct _payload {
 	unsigned int message;
         unsigned long size;
-        char *data;
+        off_t data;
 };
 
 static int fd, fdsm;
@@ -43,9 +43,7 @@ int main(int argc, char *argv[])
 	int flag = 1;
 	int shutdown_msg = SHUTDOWN_MSG;
 	int ping_msg = PING;
-/*	int writenow_msg = WRITE_NOW;
-	int startwrite_msg = START_WRITE;
-	int stopwrite_msg = STOP_WRITE;*/
+	int writenow_msg = WRITE_NOW;
 	int cmd, ret;
 	int size, bytes_rcvd, bytes_sent;
 	int opt;
@@ -80,8 +78,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	long address = ioctl(fdsm,0,0);
-	printf("\r\n DIR: %ld \r\n",address);
+	off_t address = ioctl(fdsm,0,0);
 
 	printf("\r\n Query internal info .. \r\n");
 
@@ -107,13 +104,12 @@ int main(int argc, char *argv[])
 		printf("\r\n **************************************** \r\n");
 		printf(" Please enter command and press enter key\r\n");
 		printf(" **************************************** \r\n");
-		printf(" 1 - Write now\r\n");
-		printf(" 2 - Start writing random numbers\r\n");
-		printf(" 3 - Stop writing random numbers\r\n");
-		printf(" 4 - Read memory\r\n");
-		printf(" 5 - Send data to remote core, retrieve the echo");
+		printf(" 1 - Bare metal writes one 4B data\r\n");
+		printf(" 2 - Linux writes one 4B data\r\n");
+		printf(" 3 - Read one 4B data\r\n");
+		printf(" 4 - Send data to remote core, retrieve the echo");
 		printf(" and validate its integrity .. \r\n");
-		printf(" 6 - Quit this application .. \r\n");
+		printf(" 5 - Quit this application .. \r\n");
 		printf(" CMD>");
 		ret = scanf("%d", &cmd);
 		if (!ret) {
@@ -127,22 +123,38 @@ int main(int argc, char *argv[])
 		}
 
 		if (cmd == 1) {
-			printf("\r\n Under development! \r\n");
+			
+			i_payload->message = writenow_msg;
+			i_payload->data = address;
+			i_payload->size = sizeof(unsigned int) + sizeof(unsigned long) + 
+				sizeof(i_payload->data);
+			write(fd,i_payload,i_payload->size);
+
+			printf("\r\n one 4B data writen by bare metal \r\n");
 
 		} else if (cmd == 2) {
-			printf("\r\n Under development! \r\n");
+
+			char buf[] = "1357"; 
+			write(fdsm,buf,sizeof(buf));
+
+			printf("\r\n one 4B data writen by bare metal \r\n");
 
 		} else if (cmd == 3) {
-			printf("\r\n Under development! \r\n");
+
+			char buf[4];
+			read(fdsm,buf,sizeof(buf));
+
+			printf("\r\nDATA: %x \r\n",buf[0]);
+			printf("DATA: %x \r\n",buf[1]);
+			printf("DATA: %x \r\n",buf[2]);
+			printf("DATA: %x \r\n",buf[3]);
 
 		} else if (cmd == 4) {
-			printf("\r\n Under development! \r\n");
-
-		} else if (cmd == 5) {
 
 			i_payload->message = ping_msg;
 			i_payload->data = "Echo";
-			i_payload->size = sizeof(unsigned int) + sizeof(unsigned long) + 4;
+			i_payload->size = sizeof(unsigned int) + sizeof(unsigned long) + 
+				sizeof(i_payload->data);
 
 			bytes_sent = write(fd,i_payload,i_payload->size);
 
@@ -163,13 +175,12 @@ int main(int argc, char *argv[])
 			}
 
 			printf("echo test: received : %s\n", r_payload->data);
-	
-		} else if (cmd == 6) {
+
+		} else if (cmd == 5) {
 			flag = 0;
 			/* Send shutdown message to remote */
 			i_payload->message = shutdown_msg;
-			i_payload->size = sizeof(unsigned int) + sizeof(unsigned long) +
-					sizeof(int);
+			i_payload->size = sizeof(unsigned int) + sizeof(unsigned long);
 			write(fd,i_payload,i_payload->size);
 			sleep(1);
 			printf("\r\n Quitting application .. \r\n");
@@ -183,7 +194,7 @@ int main(int argc, char *argv[])
 	free(r_payload);
 
 	close(fd);
-
+	close(fdsm);
 	return 0;
 }
 
