@@ -8,7 +8,7 @@ Establece un área de memoria, reservada por dma, compartida entre los núcleos 
 
 La llamada open, además de devolver el descriptor, reserva memoria para DMA y esta es liberada en el proceso de close. Las llamas read/write transfieren datos sobre la memoria reservada leyendo y escribiendo entre 'kernel_space' y 'user_space'. Finalmente la llamada ioctl permite conocer la dirección física de inicio del espacio reservado.
 
-![diagram](.\diagram.jpg)
+![diagram](./diagram.jpg)
 
 ### Sobre las direcciones físicas y virtuales
 
