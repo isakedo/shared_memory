@@ -6,9 +6,20 @@ Establece un área de memoria, reservada por dma, compartida entre los núcleos 
 
 #### Resumen funcionamiento del driver
 
-La llamada open, además de devolver el descriptor, reserva memoria para DMA y esta es liberada en el proceso de close. Las llamas read/write transfieren datos sobre la memoria reservada leyendo y escribiendo entre 'kernel_space' y 'user_space'. Finalmente la llamada ioctl permite conocer la dirección de inicio del espacio reservado.
+La llamada open, además de devolver el descriptor, reserva memoria para DMA y esta es liberada en el proceso de close. Las llamas read/write transfieren datos sobre la memoria reservada leyendo y escribiendo entre 'kernel_space' y 'user_space'. Finalmente la llamada ioctl permite conocer la dirección física de inicio del espacio reservado.
 
 ![diagram](.\diagram.jpg)
+
+### Sobre las direcciones físicas y virtuales
+
+La dirección que devuelve ioctl es una dirección real dentro del espacio de "memoria físico" del sistema, dado que está pensada para que se le pase dicha dirección a una aplicación bare-metal. En dicho proceso es necesario, además de asegurar que es una dirección directamente mapeada, retirar el offset presente de base "PAGE_OFFSET. Para cumplir esta  se ha recurrido al macro ```__pa()```.
+
+```c
+
+	init_addr_pa = (off_t)__pa(init_addr_va);
+
+```
+
 
 ### Funciones
 

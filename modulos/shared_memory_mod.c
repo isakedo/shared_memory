@@ -98,7 +98,7 @@ static int dev_release(struct inode *inodep, struct file *filep)
 /* dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset)
 *
 *	buffer: buffer de salida para el contenido copiado
-* len: cantidad de contenido a copiar < 4MB
+* len: cantidad de contenido a copiar < MEM_SIZE
 *
 */
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset)
